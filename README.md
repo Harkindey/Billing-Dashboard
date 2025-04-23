@@ -2,6 +2,10 @@
 
 A Next.js application for visualizing healthcare billing data and forecasting revenue using Monte Carlo simulation.
 
+## Live Demo
+
+Visit the live application: [Healthcare Billing Dashboard](https://healthcare-billing-dashboard-qnk43ioxz-harkindey1s-projects.vercel.app/)
+
 ## Features
 
 - **Dashboard Summary**
