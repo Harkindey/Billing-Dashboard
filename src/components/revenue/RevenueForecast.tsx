@@ -8,17 +8,19 @@ import { BillingRecord, SimulationResult } from '@/types/billing';
 import { fetchBillingData } from '@/app/actions';
 import { RevenueForecastSkeleton } from './RevenueForecastSkeleton';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ITERATIONS = 2000;
 const DISTRIBUTION_POINTS = 20; // could be any points, but 20 is good for visualization, to maintain a view of the distribution.
 
 export function RevenueForecast() {
   const [loading, setLoading] = useState(true);
+  const [simulationLoading, setSimulationLoading] = useState(false);
   const [data, setData] = useState<BillingRecord[]>([]);
   const [probabilities, setProbabilities] = useState({
     Pending: 70,
     Approved: 100,
-    Denied: 0,
+    Denied: 30,
   });
 
   const [simulationResult, setSimulationResult] = useState<SimulationResult>({
@@ -52,6 +54,7 @@ export function RevenueForecast() {
   const runMonteCarloSimulation = useCallback(() => {
     if (data.length === 0) return;
 
+    setSimulationLoading(true);
     const results: number[] = [];
 
     // Run simulation iterations
@@ -112,6 +115,7 @@ export function RevenueForecast() {
       maxRevenue,
       confidenceInterval,
     });
+    setSimulationLoading(false);
   }, [probabilities, data]);
 
   useEffect(() => {
@@ -138,83 +142,6 @@ export function RevenueForecast() {
   return (
     <ErrorBoundary>
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Expected Revenue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${simulationResult.expectedRevenue.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Minimum Revenue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${simulationResult.minRevenue.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Maximum Revenue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${simulationResult.maxRevenue.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">95% Confidence Interval</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm">
-                ${simulationResult.confidenceInterval.lower.toFixed(2)} - ${simulationResult.confidenceInterval.upper.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={distributionData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="revenue"
-                    tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
-                  />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      value,
-                      name === 'count' ? 'Occurrences' : name
-                    ]}
-                    labelFormatter={(label: number) => `Revenue: $${label.toFixed(2)}`}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle>Payment Probabilities</CardTitle>
@@ -257,6 +184,99 @@ export function RevenueForecast() {
                 max={100}
                 step={1}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Expected Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {simulationLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold">
+                  ${simulationResult.expectedRevenue.toFixed(2)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Minimum Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {simulationLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold">
+                  ${simulationResult.minRevenue.toFixed(2)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Maximum Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {simulationLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold">
+                  ${simulationResult.maxRevenue.toFixed(2)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">95% Confidence Interval</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {simulationLoading ? (
+                <Skeleton className="h-5 w-48" />
+              ) : (
+                <div className="text-sm">
+                  ${simulationResult.confidenceInterval.lower.toFixed(2)} - ${simulationResult.confidenceInterval.upper.toFixed(2)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={distributionData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="revenue"
+                    tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
+                  />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      value,
+                      name === 'count' ? 'Occurrences' : name
+                    ]}
+                    labelFormatter={(label: number) => `Revenue: $${label.toFixed(2)}`}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#2563eb"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
