@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -9,9 +9,6 @@ import { fetchBillingData } from '@/app/actions';
 import { RevenueForecastSkeleton } from './RevenueForecastSkeleton';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const ITERATIONS = 2000;
-const DISTRIBUTION_POINTS = 20; // could be any points, but 20 is good for visualization, to maintain a view of the distribution.
 
 export function RevenueForecast() {
   const [loading, setLoading] = useState(true);
@@ -34,6 +31,24 @@ export function RevenueForecast() {
   });
 
   const [distributionData, setDistributionData] = useState<{ revenue: number; count: number }[]>([]);
+  const workerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    // Initialize the worker
+    workerRef.current = new Worker(new URL('@/workers/revenueSimulation.worker.ts', import.meta.url));
+
+    // Set up the message handler
+    workerRef.current.onmessage = (e: MessageEvent) => {
+      const { simulationResult, distributionData } = e.data;
+      setSimulationResult(simulationResult);
+      setDistributionData(distributionData);
+      setSimulationLoading(false);
+    };
+
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -52,70 +67,10 @@ export function RevenueForecast() {
   }, []);
 
   const runMonteCarloSimulation = useCallback(() => {
-    if (data.length === 0) return;
+    if (data.length === 0 || !workerRef.current) return;
 
     setSimulationLoading(true);
-    const results: number[] = [];
-
-    // Run simulation iterations
-    for (let i = 0; i < ITERATIONS; i++) {
-      let iterationTotal = 0;
-
-      data.forEach((claim: BillingRecord) => {
-        const probability = probabilities[claim.payment_status] / 100;
-        const isPaid = Math.random() < probability;
-
-        if (isPaid) {
-          iterationTotal += claim.amount;
-        }
-      });
-
-      results.push(iterationTotal);
-    }
-
-    // Calculate statistics
-    results.sort((a, b) => a - b);
-    const expectedRevenue = results.reduce((a, b) => a + b, 0) / ITERATIONS;
-    const minRevenue = results[0];
-    const maxRevenue = results[results.length - 1];
-    
-    // Calculate 95% confidence interval
-    const lowerIndex = Math.floor(ITERATIONS * 0.025);
-    const upperIndex = Math.floor(ITERATIONS * 0.975);
-    const confidenceInterval = {
-      lower: results[lowerIndex],
-      upper: results[upperIndex],
-    };
-
-    // Calculate distribution for visualization
-    const range = maxRevenue - minRevenue;
-    const bucketSize = range / DISTRIBUTION_POINTS;
-
-    console.log(bucketSize, DISTRIBUTION_POINTS, 'bucketSize, DISTRIBUTION_POINTS')
-    const distribution = new Array(DISTRIBUTION_POINTS).fill(0);
-
-    results.forEach(value => {
-      const bucketIndex = Math.min(
-        Math.floor((value - minRevenue) / bucketSize),
-        DISTRIBUTION_POINTS - 1
-      );
-      distribution[bucketIndex]++;
-    });
-    
-
-    const distributionData = distribution.map((count, index) => ({
-      revenue: minRevenue + (index * bucketSize),
-      count,
-    }));
-
-    setDistributionData(distributionData);
-    setSimulationResult({
-      expectedRevenue,
-      minRevenue,
-      maxRevenue,
-      confidenceInterval,
-    });
-    setSimulationLoading(false);
+    workerRef.current.postMessage({ data, probabilities });
   }, [probabilities, data]);
 
   useEffect(() => {
