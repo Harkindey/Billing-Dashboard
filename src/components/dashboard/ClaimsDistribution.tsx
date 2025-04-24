@@ -14,6 +14,36 @@ const COLORS = {
   Denied: '#ef4444',   // Red
 };
 
+interface TooltipData {
+  name: string;
+  value: number;
+  amount: number;
+  percent: number;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: TooltipData;
+  }>;
+}
+
+// Custom tooltip component
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white p-3 shadow-lg rounded-lg border">
+        <p className="font-medium text-sm">{data.name}</p>
+        <p className="text-sm text-gray-600">Count: {data.value}</p>
+        <p className="text-sm text-gray-600">Amount: ${data.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <p className="text-sm text-gray-600">Percentage: {(data.percent * 100).toFixed(1)}%</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 function ClaimsDistributionSkeleton() {
   return (
     <Card className="col-span-2">
@@ -54,13 +84,24 @@ export function ClaimsDistribution() {
   }
 
   const distribution = data.reduce((acc, claim) => {
-    acc[claim.payment_status] = (acc[claim.payment_status] || 0) + 1;
+    if (!acc[claim.payment_status]) {
+      acc[claim.payment_status] = {
+        count: 0,
+        amount: 0
+      };
+    }
+    acc[claim.payment_status].count += 1;
+    acc[claim.payment_status].amount += claim.amount;
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<string, { count: number; amount: number }>);
 
-  const chartData = Object.entries(distribution).map(([name, value]) => ({
+  const total = Object.values(distribution).reduce((sum, { count }) => sum + count, 0);
+
+  const chartData = Object.entries(distribution).map(([name, { count, amount }]) => ({
     name,
-    value,
+    value: count,
+    amount,
+    percent: count / total
   }));
 
   return (
@@ -90,7 +131,7 @@ export function ClaimsDistribution() {
                     />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
