@@ -4,7 +4,7 @@ A Next.js application for visualizing healthcare billing data and forecasting re
 
 ## Live Demo
 
-Visit the live application: [Healthcare Billing Dashboard](https://healthcare-billing-dashboard-qnk43ioxz-harkindey1s-projects.vercel.app/)
+Visit the live application: [Healthcare Billing Dashboard](https://healthcare-billing-dashboard-harkindey1s-projects.vercel.app/)
 
 ## Features
 
