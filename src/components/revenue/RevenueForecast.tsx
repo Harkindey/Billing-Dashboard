@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -35,6 +35,27 @@ export function RevenueForecast() {
 
   const [distributionData, setDistributionData] = useState<{ revenue: number; count: number }[]>([]);
 
+  // WE CAN USE WEBWORKER HERE, i did use them but they were failing on production. and i ran out of time to fix them.
+
+  // const workerRef = useRef<Worker | null>(null);
+
+  // useEffect(() => {
+  //   // Initialize the worker
+  //   workerRef.current = new Worker(new URL('@/workers/revenueSimulation.worker.ts', import.meta.url));
+
+  //   // Set up the message handler
+  //   workerRef.current.onmessage = (e: MessageEvent) => {
+  //     const { simulationResult, distributionData } = e.data;
+  //     setSimulationResult(simulationResult);
+  //     setDistributionData(distributionData);
+  //     setSimulationLoading(false);
+  //   };
+
+  //   return () => {
+  //     workerRef.current?.terminate();
+  //   };
+  // }, []);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -51,7 +72,10 @@ export function RevenueForecast() {
     loadData();
   }, []);
 
-  const runMonteCarloSimulation = useCallback(() => {
+  const runMonteCarloSimulation = useCallback(() => { 
+    // if (data.length === 0 || !workerRef.current) return; 
+    // workerRef.current.postMessage({ data, probabilities });
+
     if (data.length === 0) return;
 
     setSimulationLoading(true);

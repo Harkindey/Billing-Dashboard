@@ -125,4 +125,6 @@ The application implements comprehensive error handling:
 
 1. Global State Implementation
    - Centralized state management (Zustand, Redux e.t.c.)
-
+2. Intensive Calculation In Webworker
+   - Doing the Monte Carlo calculations in the browser
+   - Using Webworker for heavy calculations
