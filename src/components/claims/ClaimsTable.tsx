@@ -21,6 +21,50 @@ import { BillingRecord, PaymentStatus } from '@/types/billing';
 import { fetchBillingData } from '@/app/actions';
 import { ClaimsTableSkeleton } from './ClaimsTableSkeleton';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { ArrowUpIcon, ArrowDownIcon, ArrowUpDownIcon } from '@/components/ui/icons';
+import { cn } from '@/lib/utils';
+import { Pagination } from '@/components/ui/pagination';
+
+// Add this new component for the sortable header
+function SortableTableHeader({
+  children,
+  sorted,
+  direction,
+  onClick,
+  className,
+}: {
+  children: React.ReactNode;
+  sorted: boolean;
+  direction: 'asc' | 'desc' | null;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <TableHead
+      className={cn(
+        "cursor-pointer select-none",
+        sorted && "text-foreground",
+        className
+      )}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-1 justify-inherit">
+        <span>{children}</span>
+        <span className="w-4 h-4 inline-flex items-center justify-center flex-shrink-0">
+          {sorted ? (
+            direction === 'asc' ? (
+              <ArrowUpIcon className="h-3 w-3" />
+            ) : (
+              <ArrowDownIcon className="h-3 w-3" />
+            )
+          ) : (
+            <ArrowUpDownIcon className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+          )}
+        </span>
+      </div>
+    </TableHead>
+  );
+}
 
 export function ClaimsTable() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +75,8 @@ export function ClaimsTable() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<BillingRecord[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     const loadData = async () => {
@@ -60,24 +106,38 @@ export function ClaimsTable() {
     });
   };
 
-  const filteredAndSortedData = data
-    .filter(record => {
-      const matchesSearch = Object.values(record).some(value =>
-        value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      const matchesStatus = statusFilter === 'all' || record.payment_status === statusFilter;
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      if (!sortConfig) return 0;
-      
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-      
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
+  const filteredData = data.filter(record => {
+    const matchesSearch = Object.values(record).some(value =>
+      value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    const matchesStatus = statusFilter === 'all' || record.payment_status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortConfig) return 0;
+    
+    const aValue = a[sortConfig.key];
+    const bValue = b[sortConfig.key];
+    
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalItems = sortedData.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedData = sortedData.slice(startIndex, startIndex + pageSize);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (newSize: string) => {
+    setPageSize(Number(newSize));
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
 
   if (loading) {
     return <ClaimsTableSkeleton />;
@@ -112,51 +172,58 @@ export function ClaimsTable() {
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead
-                  className="cursor-pointer"
+              <TableRow className="group">
+                <SortableTableHeader
+                  sorted={sortConfig?.key === 'patient_name'}
+                  direction={sortConfig?.key === 'patient_name' ? sortConfig.direction : null}
                   onClick={() => handleSort('patient_name')}
                 >
                   Patient Name
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sorted={sortConfig?.key === 'billing_code'}
+                  direction={sortConfig?.key === 'billing_code' ? sortConfig.direction : null}
                   onClick={() => handleSort('billing_code')}
                 >
                   Billing Code
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer text-right"
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sorted={sortConfig?.key === 'amount'}
+                  direction={sortConfig?.key === 'amount' ? sortConfig.direction : null}
                   onClick={() => handleSort('amount')}
+                  className="text-right"
                 >
                   Amount
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sorted={sortConfig?.key === 'insurance_provider'}
+                  direction={sortConfig?.key === 'insurance_provider' ? sortConfig.direction : null}
                   onClick={() => handleSort('insurance_provider')}
                 >
                   Insurance Provider
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sorted={sortConfig?.key === 'payment_status'}
+                  direction={sortConfig?.key === 'payment_status' ? sortConfig.direction : null}
                   onClick={() => handleSort('payment_status')}
                 >
                   Status
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sorted={sortConfig?.key === 'claim_date'}
+                  direction={sortConfig?.key === 'claim_date' ? sortConfig.direction : null}
                   onClick={() => handleSort('claim_date')}
                 >
                   Claim Date
-                </TableHead>
+                </SortableTableHeader>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSortedData.map((record) => (
+              {paginatedData.map((record) => (
                 <TableRow key={record.patient_id}>
                   <TableCell>{record.patient_name}</TableCell>
                   <TableCell>{record.billing_code}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell>
                     ${record.amount.toFixed(2)}
                   </TableCell>
                   <TableCell>{record.insurance_provider}</TableCell>
@@ -181,6 +248,16 @@ export function ClaimsTable() {
             </TableBody>
           </Table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={totalItems}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          className="py-4"
+        />
       </div>
     </ErrorBoundary>
   );
